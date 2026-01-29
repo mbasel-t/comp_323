@@ -15,6 +15,7 @@ class Colors:
     text: tuple[int, int, int] = (236, 239, 244)
 
     player: tuple[int, int, int] = (136, 192, 208)
+    player_invincible: tuple[int, int, int] = (0, 200, 200)
     enemy: tuple[int, int, int] = (191, 97, 106)
     coin: tuple[int, int, int] = (235, 203, 139)
 
@@ -36,6 +37,7 @@ class Game:
 
         self.state: str = "title"  # title | playing | gameover
         self._reset_run()
+        self.invincibility: int = 0  # frames of invincibility after losing a life
 
     def _load_high_score(self) -> int:
         if not self.save_path.exists():
@@ -58,6 +60,7 @@ class Game:
 
         self.score = 0
         self.alive_time = 0.0
+        self.lives = 3
 
         self.enemy_rects: list[pygame.Rect] = []
         self.enemy_vs: list[pygame.Vector2] = []
@@ -71,7 +74,7 @@ class Game:
 
     def _spawn_coin(self) -> pygame.Rect:
         # Keep coin away from top HUD area.
-        return pygame.Rect(random.randrange(20, self.w - 20), random.randrange(90, self.h - 20), 18, 18)
+        return pygame.Rect(random.randrange(20, self.w - 20), random.randrange(90, self.h - 20), 25, 25)
 
     def handle_event(self, event: pygame.event.Event) -> None:
         if event.type == pygame.KEYDOWN:
@@ -88,22 +91,36 @@ class Game:
             return
 
         self.alive_time += dt
+        if self.invincibility > 0:
+            self.invincibility -= 1
 
         # Input: map keys -> direction.
         keys = pygame.key.get_pressed()
         input_x = 0.0
         input_y = 0.0
         if keys[pygame.K_LEFT] or keys[pygame.K_a]:
-            input_x -= 1.0
+            if keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+                input_x -= 0.71
+            else:
+                input_x -= 1.0
         if keys[pygame.K_RIGHT] or keys[pygame.K_d]:
-            input_x += 1.0
+            if keys[pygame.K_UP] or keys[pygame.K_DOWN]:
+                input_x += 0.71
+            else:
+                input_x += 1.0
         if keys[pygame.K_UP] or keys[pygame.K_w]:
-            input_y -= 1.0
+            if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]:
+                input_y -= 0.71
+            else:
+                input_y -= 1.0
         if keys[pygame.K_DOWN] or keys[pygame.K_s]:
-            input_y += 1.0
+            if keys[pygame.K_LEFT] or keys[pygame.K_RIGHT]:
+                input_y += 0.71
+            else:
+                input_y += 1.0  
 
         # Movement: velocity integrates into position; dt makes it frame-rate independent.
-        speed = 360.0
+        speed = 360.0*(1+self.score*0.015)
         self.player_v.x = input_x * speed
         self.player_v.y = input_y * speed
 
@@ -137,10 +154,14 @@ class Game:
 
         # Collision: player with enemies.
         if self.player.collidelist(self.enemy_rects) != -1:
-            self.state = "gameover"
-            if self.score > self.high_score:
-                self.high_score = self.score
-                self._save_high_score()
+            if self.lives == 1 and self.invincibility == 0:
+                self.state = "gameover"
+                if self.score > self.high_score:
+                    self.high_score = self.score
+                    self._save_high_score()
+            elif self.invincibility == 0:
+                self.lives -= 1
+                self.invincibility = 180 # invincibility frames after losing a life
 
     def draw(self) -> None:
         self.screen.fill(COLORS.bg)
@@ -156,7 +177,7 @@ class Game:
         panel = pygame.Rect(12, 12, 420, 40)
         pygame.draw.rect(self.screen, COLORS.panel, panel, border_radius=10)
 
-        text = f"Score: {self.score}    High: {self.high_score}"
+        text = f"Score: {self.score}    High: {self.high_score}    Lives: {self.lives}"
         surf = self.font.render(text, True, COLORS.text)
         self.screen.blit(surf, (panel.x + 12, panel.y + 12))
 

@@ -64,6 +64,9 @@ class Game:
         self.jump_requested = False
 
         self.time_left = self.TIMER_SECONDS
+        self.goal_counter = 0
+
+        self.stage = 0
 
         self.goal = Goal(pos=pygame.Vector2(0, 0))
         self.teleporter = Teleporter(rect=pygame.Rect(0, 0, 40, 40))
@@ -83,6 +86,7 @@ class Game:
         self.jump_requested = False
 
         self.goal.pos = self._random_point_in_playfield(margin=60)
+        self.goal_counter = random.randint(0, 2)
         tp_center = self._random_point_in_playfield(margin=70)
         self.teleporter.rect.center = (int(tp_center.x), int(tp_center.y))
 
@@ -205,10 +209,14 @@ class Game:
         if self.player_rect.left < self.playfield.left:
             self.player_rect.left = self.playfield.left
             self.player_vel.x *= -1
+            if self.platformer_mode and self.player_vel.y < 0:
+                self.player_vel.y = -self.JUMP_SPEED
             bounced = True
         elif self.player_rect.right > self.playfield.right:
             self.player_rect.right = self.playfield.right
             self.player_vel.x *= -1
+            if self.platformer_mode and self.player_vel.y < 0:
+                self.player_vel.y = -self.JUMP_SPEED
             bounced = True
 
         if self.player_rect.top < self.playfield.top:
@@ -286,13 +294,24 @@ class Game:
 
             self._apply_bounds_player()
 
-        # Teleporter: collision changes decision (risk/reward positional change).
+        # Teleporter: collision changes decision (risk/reward positional change). (topdown mode)
+        # Bounce pad: collision accelerates player upward. (platformer mode)
         if self.player_rect.colliderect(self.teleporter.rect):
-            new_pos = self._random_point_in_playfield(margin=80)
-            self.player_pos.update(new_pos)
-            self.player_rect.center = (int(new_pos.x), int(new_pos.y))
+            if self.platformer_mode:
+                if self.player_vel.y > -self.JUMP_SPEED:
+                    self.player_vel.y = -self.JUMP_SPEED
+                else:
+                    self.player_vel.y = -self.player_vel.y
+            else:
+                new_pos = self._random_point_in_playfield(margin=80)
+                self.player_pos.update(new_pos)
+                self.player_rect.center = (int(new_pos.x), int(new_pos.y))
 
         if self._player_reaches_goal():
+            if self.goal_counter > 0:
+                self.goal_counter -= 1
+                self.goal.pos = self._random_point_in_playfield(margin=60)
+                return
             self.level += 1
             self.state = "win"
 
