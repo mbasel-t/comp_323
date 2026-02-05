@@ -33,8 +33,8 @@ class Game:
     PLAYER_FRICTION = 10.0
 
     # Platformer-style vertical movement
-    GRAVITY = 2200.0
-    JUMP_SPEED = 820.0
+    GRAVITY = 1200.0
+    JUMP_SPEED = 640.0
 
     TIMER_SECONDS = 30.0
 
@@ -209,19 +209,19 @@ class Game:
         if self.player_rect.left < self.playfield.left:
             self.player_rect.left = self.playfield.left
             self.player_vel.x *= -1
-            if self.platformer_mode and self.player_vel.y < 0:
+            if self.platformer_mode:
                 self.player_vel.y = -self.JUMP_SPEED
             bounced = True
         elif self.player_rect.right > self.playfield.right:
             self.player_rect.right = self.playfield.right
             self.player_vel.x *= -1
-            if self.platformer_mode and self.player_vel.y < 0:
+            if self.platformer_mode:
                 self.player_vel.y = -self.JUMP_SPEED
             bounced = True
 
         if self.player_rect.top < self.playfield.top:
             self.player_rect.top = self.playfield.top
-            self.player_vel.y *= -1
+            if not self.platformer_mode: self.player_vel.y *= -1
             bounced = True
         elif self.player_rect.bottom > self.playfield.bottom:
             self.player_rect.bottom = self.playfield.bottom
@@ -298,10 +298,7 @@ class Game:
         # Bounce pad: collision accelerates player upward. (platformer mode)
         if self.player_rect.colliderect(self.teleporter.rect):
             if self.platformer_mode:
-                if self.player_vel.y > -self.JUMP_SPEED:
-                    self.player_vel.y = -self.JUMP_SPEED
-                else:
-                    self.player_vel.y = -self.player_vel.y
+                self.player_vel.y = max(-self.JUMP_SPEED*1.6, min(-self.JUMP_SPEED, self.player_vel.y - self.JUMP_SPEED*0.15))            
             else:
                 new_pos = self._random_point_in_playfield(margin=80)
                 self.player_pos.update(new_pos)
