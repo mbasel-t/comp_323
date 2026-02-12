@@ -97,6 +97,22 @@ class Game:
                 gravity=3200.0,
                 jump_speed=820.0,
             ),
+            FeelPreset(
+                name="nimble",
+                accel=4000.0,
+                max_speed=850,
+                friction=14.0,
+                gravity=7000.0,
+                jump_speed=1800.0
+            ),
+            FeelPreset(
+                name="kirby",
+                accel=3200.0,
+                max_speed=550,
+                friction=14.0,
+                gravity=500.0,
+                jump_speed=350.0
+            )
         ]
         self.preset_idx = 0
 
@@ -173,6 +189,12 @@ class Game:
         if event.key == pygame.K_3:
             self.preset_idx = 2
             return
+        if event.key == pygame.K_4:
+            self.preset_idx = 3
+            return
+        if event.key == pygame.K_5:
+            self.preset_idx = 4
+            return
 
         if self.state != "play":
             return
@@ -186,12 +208,15 @@ class Game:
             self.jump_requested = True
 
     def _scheme_keys(self) -> dict[str, set[int]]:
+
+
         if self.control_scheme == ControlScheme.WASD:
             return {
                 "left": {pygame.K_a},
                 "right": {pygame.K_d},
                 "up": {pygame.K_w},
                 "down": {pygame.K_s},
+                "dash": {pygame.K_LSHIFT, pygame.K_RSHIFT},
             }
         if self.control_scheme == ControlScheme.IJKL:
             return {
@@ -199,12 +224,14 @@ class Game:
                 "right": {pygame.K_l},
                 "up": {pygame.K_i},
                 "down": {pygame.K_k},
+                "dash": {pygame.K_LSHIFT, pygame.K_RSHIFT},
             }
         return {
             "left": {pygame.K_LEFT},
             "right": {pygame.K_RIGHT},
             "up": {pygame.K_UP},
             "down": {pygame.K_DOWN},
+            "dash": {pygame.K_LSHIFT, pygame.K_RSHIFT},
         }
 
     def _read_direction(self) -> pygame.Vector2:
