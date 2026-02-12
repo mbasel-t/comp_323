@@ -4,7 +4,7 @@ from dataclasses import dataclass, field
 
 import random
 
-import pygame
+import pygame # type: ignore
 
 
 @dataclass(frozen=True)
@@ -102,12 +102,15 @@ class Player(pygame.sprite.Sprite):
 
         self.hp = 3
         self.invincible_for = 0.0
-
-        self.score = 0
+        self.golden_for = 0.0
 
     @property
     def is_invincible(self) -> bool:
         return self.invincible_for > 0
+    
+    @property
+    def is_golden(self) -> bool:
+        return self.golden_for > 0
 
 
 class Game:
@@ -118,11 +121,14 @@ class Game:
     PADDING = 12
 
     def __init__(self) -> None:
+        self.score = 0
         self.palette = Palette()
 
         self.screen = pygame.display.set_mode((self.SCREEN_W, self.SCREEN_H))
         self.font = pygame.font.SysFont(None, 22)
         self.big_font = pygame.font.SysFont(None, 40)
+
+        self.stage = 0 # level progression
 
         self.screen_rect = pygame.Rect(0, 0, self.SCREEN_W, self.SCREEN_H)
         self.playfield = pygame.Rect(
@@ -147,6 +153,7 @@ class Game:
         self._reset_level(keep_state=True)
 
     def _reset_level(self, *, keep_state: bool = False) -> None:
+        self.stage += 1
         self.all_sprites.empty()
         self.walls.empty()
         self.coins.empty()
@@ -154,6 +161,8 @@ class Game:
 
         self.player = Player(self.playfield.center, color=self.palette.player)
         self.all_sprites.add(self.player)
+
+        rng = random.Random(self.stage)
 
         def add_wall(r: pygame.Rect) -> None:
             wall = Wall(r, self.palette.wall)
@@ -184,7 +193,6 @@ class Game:
         self.all_sprites.add(h1, h2)
 
         # Coins (trigger)
-        rng = random.Random(4)
         for _ in range(8):
             for __ in range(100):
                 x = rng.randint(self.playfield.left + 40, self.playfield.right - 40)
@@ -284,6 +292,7 @@ class Game:
 
         if self.player.hp <= 0:
             self.state = "gameover"
+            self.score = 0
 
     def update(self, dt: float) -> None:
         if self._shake > 0:
@@ -302,7 +311,8 @@ class Game:
         # Triggers: coin pickup
         picked = pygame.sprite.spritecollide(self.player, self.coins, dokill=True)
         if picked:
-            self.player.score += len(picked)
+            self.score += len(picked)
+            self.player.golden_for = 0.3 # 1/3 second
 
         # Hazards: damage + response
         for hz in pygame.sprite.spritecollide(self.player, self.hazards, dokill=False):
@@ -312,6 +322,9 @@ class Game:
 
         if self.player.invincible_for > 0:
             self.player.invincible_for = max(0.0, self.player.invincible_for - dt)
+
+        if self.player.golden_for > 0:
+            self.player.golden_for = max(0.0, self.player.golden_for - dt)
 
         if len(self.coins) == 0:
             # Quick win condition: respawn coins + hazards to keep playing
@@ -340,7 +353,7 @@ class Game:
             1,
         )
 
-        hud = f"Score: {self.player.score}    HP: {self.player.hp}"
+        hud = f"Score: {self.score}    HP: {self.player.hp}"
         if self.player.is_invincible:
             hud += "    i-frames"
 
@@ -379,6 +392,11 @@ class Game:
             # Simple blink while invincible
             if int(self.player.invincible_for * 16) % 2 == 0:
                 player_color = pygame.Color("#d8dee9")
+        elif self.player.golden_for > 0:
+            # Flash gold briefly after picking up a coin
+            player_color = pygame.Color("#fcb830")
+        else:
+            player_color = self.player.color
         pygame.draw.circle(self.screen, player_color, visual.center, visual.width // 2)
         pygame.draw.circle(self.screen, pygame.Color("#000000"), visual.center, visual.width // 2, 2)
 
@@ -400,7 +418,7 @@ class Game:
 
         # Help text
         self.screen.blit(
-            self.font.render("DEBUG: Rect hitboxes (collisions use these)", True, self.palette.text),
+            self.font.render(f"DEBUG: Golden status: {self.player.golden_for}", True, self.palette.text),
             (self.SCREEN_W - 320, 18),
         )
 

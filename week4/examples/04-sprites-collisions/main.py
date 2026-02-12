@@ -1,4 +1,4 @@
-import pygame
+import pygame # type: ignore
 
 from sprites_collisions.game import Game
 
